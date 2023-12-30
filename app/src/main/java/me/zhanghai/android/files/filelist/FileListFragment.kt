@@ -116,6 +116,7 @@ import me.zhanghai.android.files.util.valueCompat
 import me.zhanghai.android.files.util.viewModels
 import me.zhanghai.android.files.util.withChooser
 import me.zhanghai.android.files.viewer.image.ImageViewerActivity
+import java.util.Date
 import kotlin.math.roundToInt
 
 class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.Listener,
@@ -721,6 +722,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     override fun navigateTo(path: Path) {
+        if (path.startsWith(currentPath)) {
+            viewModel.updateLastOpenedTimeMapIfExist(path.name, Date())
+        }
         collapseSearchView()
         val state = layoutManager.onSaveInstanceState()
         viewModel.navigateTo(state!!, path)
@@ -1122,6 +1126,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private fun openFileWithIntent(file: FileItem, withChooser: Boolean) {
         val path = file.path
+        viewModel.updateLastOpenedTimeMapIfExist(path.name, Date())
         val mimeType = file.mimeType
         if (path.isArchivePath) {
             FileJobService.open(path, mimeType, withChooser, requireContext())

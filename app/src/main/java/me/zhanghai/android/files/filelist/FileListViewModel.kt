@@ -6,21 +6,29 @@
 package me.zhanghai.android.files.filelist
 
 import android.os.Parcelable
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.map
+import java8.nio.charset.StandardCharsets
 import java8.nio.file.Path
+import java8.nio.file.StandardCopyOption
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filelist.FileSortOptions.By
 import me.zhanghai.android.files.filelist.FileSortOptions.Order
 import me.zhanghai.android.files.provider.archive.archiveRefresh
 import me.zhanghai.android.files.provider.archive.isArchivePath
+import me.zhanghai.android.files.provider.common.exists
+import me.zhanghai.android.files.provider.common.moveTo
+import me.zhanghai.android.files.provider.common.readAllBytes
 import me.zhanghai.android.files.util.CloseableLiveData
 import me.zhanghai.android.files.util.Stateful
 import me.zhanghai.android.files.util.valueCompat
 import java.io.Closeable
+import java.text.SimpleDateFormat
+import java.util.Date
 
 // TODO: Use SavedStateHandle to save state.
 class FileListViewModel : ViewModel() {
@@ -50,6 +58,8 @@ class FileListViewModel : ViewModel() {
     val searchState: SearchState
         get() = _searchStateLiveData.valueCompat
 
+    private var lastOpenedTimeMap: LinkedHashMap<String, Date>? = null
+
     fun search(query: String) {
         val searchState = _searchStateLiveData.valueCompat
         if (searchState.isSearching && searchState.query == query) {
@@ -78,6 +88,7 @@ class FileListViewModel : ViewModel() {
         if (path.isArchivePath) {
             path.archiveRefresh()
         }
+        loadLastOpenedTimeMap(path)
         _fileListLiveData.reload()
     }
 
@@ -220,6 +231,65 @@ class FileListViewModel : ViewModel() {
         _pasteStateLiveData.value = pasteState
     }
 
+    fun loadLastOpenedTimeMap(path: Path) {
+        lastOpenedTimeMap = try {
+            path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+                if (!mp.exists()) {
+                    return@let null
+                }
+                Log.i(javaClass.simpleName, "reading lastOpenedTimeMap")
+                val result = mp.readAllBytes()
+                    .toString(StandardCharsets.UTF_8)
+                    .split("\n")
+                    .map {
+                        val splitted = it.trim().split("     ")
+                        splitted.getOrElse(1, { _ -> null}) to try {
+                            splitted.getOrNull(0)?.let {
+                                lastOpenedTimeMapDf.parse(it)
+                            }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    .mapNotNull {
+                        if (it.first != null && it.second != null) {
+                            (it.first to it.second) as Pair<String, Date>
+                        } else {
+                            null
+                        }
+                    }
+                    .toMap(LinkedHashMap())
+                Log.i(javaClass.simpleName, "done reading lastOpenedTimeMap")
+                result
+            }
+        } catch (e: Exception) {
+            Log.w(javaClass.simpleName, "reading lastOpenedTimeMap fail " + Log.getStackTraceString(e))
+            null
+        }
+    }
+
+    fun updateLastOpenedTimeMapIfExist(fileName: String, newOpenedDate: Date) {
+        try {
+            lastOpenedTimeMap?.let { lastOpenedTimeMap ->
+                loadLastOpenedTimeMap(currentPath)
+                Log.i(javaClass.simpleName, "writing lastOpenedTimeMap")
+                lastOpenedTimeMap[fileName] = newOpenedDate
+                val tempFileName = "RIV_FILE_LAST_OPENED_TIME_MAP.txt".replace(".txt", "." + lastOpenedTimeMapDf.format(Date()).replace("-", "").replace(" ", "").replace(":", "") + ".txt")
+                currentPathLiveData.valueCompat.resolve(tempFileName)
+                    .toFile().writeBytes(
+                        lastOpenedTimeMap.map {
+                            lastOpenedTimeMapDf.format(it.value) + "     " + it.key
+                        }.joinToString("\n").toByteArray(StandardCharsets.UTF_8)
+                    )
+
+                currentPathLiveData.valueCompat.resolve(tempFileName).moveTo(currentPathLiveData.valueCompat.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt"), StandardCopyOption.REPLACE_EXISTING)
+                Log.i(javaClass.simpleName, "done writing lastOpenedTimeMap")
+            }
+        } catch (e: Exception) {
+            Log.w(javaClass.simpleName, "writing lastOpenedTimeMap fail " + Log.getStackTraceString(e))
+        }
+    }
+
     private val _isRequestingStorageAccessLiveData = MutableLiveData(false)
     var isStorageAccessRequested: Boolean
         get() = _isRequestingStorageAccessLiveData.valueCompat
@@ -235,14 +305,17 @@ class FileListViewModel : ViewModel() {
         }
 
     override fun onCleared() {
+        Log.i(javaClass.simpleName, "onCleared: setting lastOpenedTimeMap to null")
+        lastOpenedTimeMap = null
         _fileListLiveData.close()
     }
 
     companion object {
         private val _pasteStateLiveData = MutableLiveData(PasteState())
+        val lastOpenedTimeMapDf = SimpleDateFormat("yyyy-MM-dd hh:mm:ss")
     }
 
-    private class FileListSwitchMapLiveData(
+    private inner class FileListSwitchMapLiveData(
         private val pathLiveData: LiveData<Path>,
         private val searchStateLiveData: LiveData<SearchState>
     ) : MediatorLiveData<Stateful<List<FileItem>>>(), Closeable {
@@ -260,10 +333,11 @@ class FileListViewModel : ViewModel() {
             }
             val path = pathLiveData.valueCompat
             val searchState = searchStateLiveData.valueCompat
+            loadLastOpenedTimeMap(path)
             val liveData = if (searchState.isSearching) {
                 SearchFileListLiveData(path, searchState.query)
             } else {
-                FileListLiveData(path)
+                FileListLiveData(path, { lastOpenedTimeMap })
             }
             this.liveData = liveData
             addSource(liveData) { value = it }

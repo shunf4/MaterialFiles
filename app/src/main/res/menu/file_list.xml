@@ -50,7 +50,7 @@
                     android:title="@string/file_list_action_sort_by_size" />
                 <item
                     android:id="@+id/action_sort_by_last_modified"
-                    android:title="@string/file_list_action_sort_by_last_modified" />
+                    android:title="@string/file_list_action_sort_by_last_modified_rivmod" />
                 <item
                     android:id="@+id/action_sort_order_ascending"
                     android:checkable="true"

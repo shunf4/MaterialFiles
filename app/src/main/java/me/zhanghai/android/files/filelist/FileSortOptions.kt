@@ -32,6 +32,9 @@ data class FileSortOptions(
                 comparator = compareBy<FileItem> { it.attributes.lastModifiedTime() }
                     .then(comparator)
         }
+        if (by == By.LAST_MODIFIED && order == Order.ASCENDING) {
+            comparator = compareBy<FileItem> { it.lastOpenedDate }.reversedCompat().then(comparator.reversedCompat())
+        }
         when (order) {
             Order.ASCENDING -> {}
             Order.DESCENDING -> comparator = comparator.reversedCompat()
