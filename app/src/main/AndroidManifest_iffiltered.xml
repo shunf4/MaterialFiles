@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2018 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+
+        <activity
+            android:name="me.zhanghai.android.files.filelist.FileListActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="inode/directory" />
+                <data android:mimeType="resource/folder" />
+                <data android:mimeType="vnd.android.document/directory" />
+            </intent-filter>
+            <!-- @see me.zhanghai.android.files.file.isSupportedArchive -->
+            <intent-filter
+                android:label="@string/archive_viewer_title"
+                tools:node="remove">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/gzip" />
+                <data android:mimeType="application/java-archive" />
+                <data android:mimeType="application/rar" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/vnd.debian.binary-package" />
+                <data android:mimeType="application/x-bzip2" />
+                <data android:mimeType="application/x-compress" />
+                <data android:mimeType="application/x-cpio" />
+                <data android:mimeType="application/x-deb" />
+                <data android:mimeType="application/x-debian-package" />
+                <data android:mimeType="application/x-gtar" />
+                <data android:mimeType="application/x-gtar-compressed" />
+                <data android:mimeType="application/x-java-archive" />
+                <data android:mimeType="application/x-lzma" />
+                <data android:mimeType="application/x-tar" />
+                <data android:mimeType="application/x-xz" />
+                <data android:mimeType="@string/intent_filter_data_seven_z_mime_type" />
+            </intent-filter>
+            <!-- @see https://android.googlesource.com/platform/packages/apps/DocumentsUI/+/master/AndroidManifest.xml -->
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.OPEN_DOCUMENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <!--
+              ~ Unusable until we implement DocumentsProvider.
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_DOCUMENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            -->
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.GET_CONTENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <!--
+              ~ Unusable until we implement DocumentsProvider.
+            <intent-filter>
+                <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            -->
+            <intent-filter tools:node="remove">
+                <action android:name="me.zhanghai.android.files.intent.action.VIEW_DOWNLOADS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!--
+          ~ Using android:documentLaunchMode="always" gives a better result than
+          ~ Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK. Not sure why though.
+          -->
+        <activity
+            android:name="me.zhanghai.android.files.filelist.OpenFileActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="me.zhanghai.android.files.intent.action.OPEN_FILE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="me.zhanghai.android.files.ftpserver.FtpServerActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="me.zhanghai.android.files.intent.action.MANAGE_FTP_SERVER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter tools:node="remove">
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.text.TextEditorActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/ecmascript" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/typescript" />
+                <data android:mimeType="application/x-sh" />
+                <data android:mimeType="application/x-shellscript" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.image.ImageViewerActivity">
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+        
+        <service
+            android:name="me.zhanghai.android.files.ftpserver.FtpServerTileService">
+            <intent-filter tools:node="remove">
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
+            <meta-data
+                tools:node="remove"
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <receiver android:name="me.zhanghai.android.files.filejob.FileJobReceiver" />
+
+        <receiver android:name="me.zhanghai.android.files.ftpserver.FtpServerReceiver" />
+
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+    </application>
+</manifest>

@@ -27,7 +27,8 @@ import java.util.Date
 @Parcelize
 data class FileItem(
     val path: @WriteWith<ParcelableParceler> Path,
-    var lastOpenedDate: @WriteWith<ParcelableParceler> Date?,
+    var lastOpenedTime: @WriteWith<ParcelableParceler> Date? = null,
+    var lastOpenedFilesForDir: @WriteWith<ParcelableParceler> String? = null,
     val nameCollationKey: @WriteWith<ParcelableParceler> CollationKey,
     val attributesNoFollowLinks: @WriteWith<ParcelableParceler> BasicFileAttributes,
     val symbolicLinkTarget: String?,
@@ -53,7 +54,7 @@ fun Path.loadFileItem(): FileItem {
     val isHidden = isHidden
     if (!attributes.isSymbolicLink) {
         val mimeType = AndroidFileTypeDetector.getMimeType(this, attributes).asMimeType()
-        return FileItem(this, null, nameCollationKey, attributes, null, null, isHidden, mimeType)
+        return FileItem(this, null, null, nameCollationKey, attributes, null, null, isHidden, mimeType)
     }
     val symbolicLinkTarget = readSymbolicLinkByteString().toString()
     val symbolicLinkTargetAttributes = try {
@@ -66,7 +67,7 @@ fun Path.loadFileItem(): FileItem {
         this, symbolicLinkTargetAttributes ?: attributes
     ).asMimeType()
     return FileItem(
-        this, null, nameCollationKey, attributes, symbolicLinkTarget, symbolicLinkTargetAttributes,
+        this, null, null, nameCollationKey, attributes, symbolicLinkTarget, symbolicLinkTargetAttributes,
         isHidden, mimeType
     )
 }

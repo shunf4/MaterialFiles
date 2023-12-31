@@ -33,6 +33,20 @@ android {
             }
         }
     }
+    flavorDimensions = ["isIffiltered" ]
+    productFlavors {
+        full {
+            dimension "isIffiltered"
+        }
+        iffiltered {
+            dimension "isIffiltered"
+        }
+    }
+    sourceSets {
+        iffiltered {
+            manifest.srcFile "src/main/AndroidManifest_iffiltered.xml"
+        }
+    }
     buildFeatures {
         aidl true
         buildConfig true

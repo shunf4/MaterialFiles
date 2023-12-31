@@ -101,7 +101,7 @@ val FileItem.appDirectoryPackageName: String?
 
 fun FileItem.createDummyArchiveRoot(): FileItem =
     FileItem(
-        path.createArchiveRootPath(), null, DummyCollationKey(), DummyArchiveRootBasicFileAttributes(),
+        path.createArchiveRootPath(), null, null, DummyCollationKey(), DummyArchiveRootBasicFileAttributes(),
         null, null, false, MimeType.DIRECTORY
     )
 

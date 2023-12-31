@@ -224,11 +224,11 @@ class FileListAdapter(
         val checked = file in selectedFiles
         holder.itemLayout.isChecked = checked
         holder.nameText.apply {
-            if (isSingleLineCompat) {
+//            if (isSingleLineCompat) {
                 val nameEllipsize = nameEllipsize
                 ellipsize = nameEllipsize
                 isSelected = nameEllipsize == TextUtils.TruncateAt.MARQUEE
-            }
+//            }
         }
         if (payloads.isNotEmpty()) {
             return
@@ -317,7 +317,7 @@ class FileListAdapter(
         }
         holder.nameText.text = file.name
         holder.descriptionText?.text = if (isDirectory) {
-            null
+            file.lastOpenedFilesForDir
         } else {
             val context = holder.descriptionText!!.context
             val lastModificationTime = attributes.lastModifiedTime().toInstant()

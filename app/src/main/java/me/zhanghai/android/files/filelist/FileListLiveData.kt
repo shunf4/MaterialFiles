@@ -21,10 +21,12 @@ import me.zhanghai.android.files.util.Success
 import me.zhanghai.android.files.util.valueCompat
 import java.io.IOException
 import java.util.Date
+import java.util.TreeMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import kotlin.io.path.Path
 
-class FileListLiveData(private val path: Path, private val lastOpenedTimeMap: Supplier<Map<String, Date>?>) : CloseableLiveData<Stateful<List<FileItem>>>() {
+class FileListLiveData(private val path: Path, private val lastOpenedTimeMapSupplier: Supplier<Map<String, Date>?>, private val lastOpenedTimeMapFilePathSupplier: Supplier<Path?>) : CloseableLiveData<Stateful<List<FileItem>>>() {
     private var future: Future<Unit>? = null
 
     private val observer: PathObserver
@@ -42,14 +44,42 @@ class FileListLiveData(private val path: Path, private val lastOpenedTimeMap: Su
         value = Loading(value?.value)
         future = (AsyncTask.THREAD_POOL_EXECUTOR as ExecutorService).submit<Unit> {
             Log.i(javaClass.simpleName, "fileListLiveData.loadValue")
+            val lastOpenedTimeMap = lastOpenedTimeMapSupplier.get()
+            val lastOpenedTimeMapFilePath = lastOpenedTimeMapFilePathSupplier.get()
             val value = try {
                 path.newDirectoryStream().use { directoryStream ->
                     val fileList = mutableListOf<FileItem>()
                     for (path in directoryStream) {
                         try {
                             fileList.add(path.loadFileItem().apply {
-                                lastOpenedTimeMap.get()?.let {
-                                    lastOpenedDate = it[path.name]
+                                lastOpenedTime = null
+                                lastOpenedTimeMap?.let b1@{
+                                    val relPathToMapFilePath = if (lastOpenedTimeMapFilePath?.parent?.equals(this@FileListLiveData.path) == true) {
+                                        path.name
+                                    } else {
+                                        lastOpenedTimeMapFilePath!!.parent.relativize(path).toString()
+                                    }
+                                    lastOpenedTimeMap[relPathToMapFilePath]?.let {
+                                        lastOpenedTime = it
+                                        lastOpenedFilesForDir = ""
+                                        return@b1
+                                    }
+
+                                    val relPathToMapFilePathSlash = relPathToMapFilePath + "/"
+                                    val lastOpenedTimeSortedMap = TreeMap<Date, String>()
+                                    lastOpenedTimeMap.forEach { (iterRelPath, lastOpenedTime) ->
+                                        if (iterRelPath.startsWith(relPathToMapFilePathSlash)) {
+                                            lastOpenedTimeSortedMap.put(lastOpenedTime, iterRelPath.removePrefix(relPathToMapFilePathSlash))
+                                        }
+                                    }
+                                    lastOpenedTime = lastOpenedTimeSortedMap.lastEntry()?.key
+                                    lastOpenedFilesForDir = lastOpenedTimeSortedMap.descendingMap().values.take(3).joinToString(", ").let {
+                                        if (it.isBlank()) {
+                                            ""
+                                        } else {
+                                            "Last: " + it
+                                        }
+                                    }
                                 }
                             })
                         } catch (e: DirectoryIteratorException) {

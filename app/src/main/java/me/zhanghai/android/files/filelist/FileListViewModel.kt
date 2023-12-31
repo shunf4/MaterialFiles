@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.map
 import java8.nio.charset.StandardCharsets
 import java8.nio.file.Path
+import java8.nio.file.Paths
 import java8.nio.file.StandardCopyOption
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filelist.FileSortOptions.By
@@ -23,9 +24,11 @@ import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.exists
 import me.zhanghai.android.files.provider.common.moveTo
 import me.zhanghai.android.files.provider.common.readAllBytes
+import me.zhanghai.android.files.provider.common.size
 import me.zhanghai.android.files.util.CloseableLiveData
 import me.zhanghai.android.files.util.Stateful
 import me.zhanghai.android.files.util.valueCompat
+import okio.Path.Companion.toPath
 import java.io.Closeable
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -59,6 +62,7 @@ class FileListViewModel : ViewModel() {
         get() = _searchStateLiveData.valueCompat
 
     private var lastOpenedTimeMap: LinkedHashMap<String, Date>? = null
+    private var lastOpenedTimeMapPath: Path? = null
 
     fun search(query: String) {
         val searchState = _searchStateLiveData.valueCompat
@@ -232,57 +236,82 @@ class FileListViewModel : ViewModel() {
     }
 
     fun loadLastOpenedTimeMap(path: Path) {
-        lastOpenedTimeMap = try {
-            path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+        lastOpenedTimeMapPath =
+            (path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
                 if (!mp.exists()) {
                     return@let null
+                } else {
+                    mp.normalize()
                 }
-                Log.i(javaClass.simpleName, "reading lastOpenedTimeMap")
-                val result = mp.readAllBytes()
-                    .toString(StandardCharsets.UTF_8)
-                    .split("\n")
-                    .map {
-                        val splitted = it.trim().split("     ")
-                        splitted.getOrElse(1, { _ -> null}) to try {
-                            splitted.getOrNull(0)?.let {
-                                lastOpenedTimeMapDf.parse(it)
-                            }
-                        } catch (e: Exception) {
-                            null
-                        }
+            } ?: run {
+                path.resolve("../" + "RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+                    if (!mp.exists()) {
+                        return@let null
+                    } else {
+                        mp.normalize()
                     }
-                    .mapNotNull {
-                        if (it.first != null && it.second != null) {
-                            (it.first to it.second) as Pair<String, Date>
-                        } else {
-                            null
-                        }
+                }
+            } ?: run {
+                path.resolve("../../RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+                    if (!mp.exists()) {
+                        return@let null
+                    } else {
+                        mp.normalize()
                     }
-                    .toMap(LinkedHashMap())
-                Log.i(javaClass.simpleName, "done reading lastOpenedTimeMap")
-                result
-            }
-        } catch (e: Exception) {
+                }
+            })
+
+        lastOpenedTimeMap = try { lastOpenedTimeMapPath?.let { mp ->
+            val zeroDate = Date(0)
+            Log.i(javaClass.simpleName, "reading lastOpenedTimeMap " + mp.toString())
+            val result = mp.readAllBytes()
+                .toString(StandardCharsets.UTF_8)
+                .split("\n")
+                .map {
+                    val splitted = it.trim().split("     ")
+                    splitted.getOrElse(1, { _ -> null}) to try {
+                        splitted.getOrNull(0)?.let {
+                            lastOpenedTimeMapDf.parse(it)
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                .mapNotNull {
+                    if (it.first != null && it.second != null) {
+                        (it.first to it.second) as Pair<String, Date>
+                    } else {
+                        null
+                    }
+                }
+                .toMap(LinkedHashMap())
+            Log.i(javaClass.simpleName, "done reading lastOpenedTimeMap")
+            result
+        } } catch (e: Exception) {
             Log.w(javaClass.simpleName, "reading lastOpenedTimeMap fail " + Log.getStackTraceString(e))
             null
         }
     }
 
-    fun updateLastOpenedTimeMapIfExist(fileName: String, newOpenedDate: Date) {
+    fun updateLastOpenedTimeMapIfExist(filePath: Path, newOpenedDate: Date) {
         try {
             lastOpenedTimeMap?.let { lastOpenedTimeMap ->
                 loadLastOpenedTimeMap(currentPath)
-                Log.i(javaClass.simpleName, "writing lastOpenedTimeMap")
-                lastOpenedTimeMap[fileName] = newOpenedDate
-                val tempFileName = "RIV_FILE_LAST_OPENED_TIME_MAP.txt".replace(".txt", "." + lastOpenedTimeMapDf.format(Date()).replace("-", "").replace(" ", "").replace(":", "") + ".txt")
-                currentPathLiveData.valueCompat.resolve(tempFileName)
+                Log.i(javaClass.simpleName, "writing lastOpenedTimeMap " + lastOpenedTimeMapPath!!.name)
+                lastOpenedTimeMap[if (lastOpenedTimeMapPath?.parent?.equals(currentPath) == true) {
+                    filePath.name
+                } else {
+                    lastOpenedTimeMapPath!!.parent.relativize(filePath).toString()
+                }] = newOpenedDate
+                val tempFilePath = lastOpenedTimeMapPath!!.resolveSibling(lastOpenedTimeMapPath!!.name.removeSuffix(".txt") + ("." + lastOpenedTimeMapDf.format(Date()).replace("-", "").replace(" ", "").replace(":", "") + ".txt"))
+                tempFilePath
                     .toFile().writeBytes(
                         lastOpenedTimeMap.map {
                             lastOpenedTimeMapDf.format(it.value) + "     " + it.key
                         }.joinToString("\n").toByteArray(StandardCharsets.UTF_8)
                     )
 
-                currentPathLiveData.valueCompat.resolve(tempFileName).moveTo(currentPathLiveData.valueCompat.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt"), StandardCopyOption.REPLACE_EXISTING)
+                tempFilePath.moveTo(lastOpenedTimeMapPath!!, StandardCopyOption.REPLACE_EXISTING)
                 Log.i(javaClass.simpleName, "done writing lastOpenedTimeMap")
             }
         } catch (e: Exception) {
@@ -312,7 +341,7 @@ class FileListViewModel : ViewModel() {
 
     companion object {
         private val _pasteStateLiveData = MutableLiveData(PasteState())
-        val lastOpenedTimeMapDf = SimpleDateFormat("yyyy-MM-dd hh:mm:ss")
+        val lastOpenedTimeMapDf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     }
 
     private inner class FileListSwitchMapLiveData(
@@ -337,7 +366,7 @@ class FileListViewModel : ViewModel() {
             val liveData = if (searchState.isSearching) {
                 SearchFileListLiveData(path, searchState.query)
             } else {
-                FileListLiveData(path, { lastOpenedTimeMap })
+                FileListLiveData(path, { lastOpenedTimeMap }, { lastOpenedTimeMapPath })
             }
             this.liveData = liveData
             addSource(liveData) { value = it }

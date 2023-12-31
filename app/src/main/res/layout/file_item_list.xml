@@ -77,11 +77,17 @@
         <!-- Lint says android:ellipsize="middle" and android:maxLines="1" crashes. -->
         <TextView
             android:id="@+id/nameText"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:lineHeight="16sp"
+            android:lineSpacingMultiplier="1.0"
+            android:lineSpacingExtra="0sp"
+            android:maxLines="2"
+            android:singleLine="false"
+            android:paddingBottom="5dp"
+            android:scrollHorizontally="true"
             android:duplicateParentState="true"
             android:marqueeRepeatLimit="marquee_forever"
-            android:singleLine="true"
             android:textAppearance="?textAppearanceListItem" />
 
         <me.zhanghai.android.files.ui.AutoGoneTextView
@@ -90,7 +96,7 @@
             android:layout_height="wrap_content"
             android:duplicateParentState="true"
             android:ellipsize="end"
-            android:maxLines="1"
+            android:maxLines="2"
             android:textAppearance="?textAppearanceListItemSecondary"
             android:textColor="?android:textColorSecondary" />
     </LinearLayout>
@@ -110,5 +116,6 @@
         android:background="@null"
         android:foreground="@drawable/selectable_item_background_oval"
         android:src="@drawable/more_vertical_icon_white_24dp"
+        android:contentDescription="menu button"
         app:tint="?colorControlNormal" />
 </me.zhanghai.android.files.ui.CheckableForegroundLinearLayout>

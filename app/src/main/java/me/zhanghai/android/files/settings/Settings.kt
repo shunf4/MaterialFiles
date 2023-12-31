@@ -60,7 +60,7 @@ object Settings {
     val FILE_LIST_SORT_OPTIONS: SettingLiveData<FileSortOptions> =
         ParcelValueSettingLiveData(
             R.string.pref_key_file_list_sort_options,
-            FileSortOptions(FileSortOptions.By.NAME, FileSortOptions.Order.ASCENDING, true)
+            FileSortOptions(FileSortOptions.By.LAST_MODIFIED, FileSortOptions.Order.ASCENDING, false)
         )
 
     val CREATE_ARCHIVE_TYPE: SettingLiveData<Int> =

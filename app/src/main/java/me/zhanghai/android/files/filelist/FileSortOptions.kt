@@ -9,6 +9,7 @@ import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 import me.zhanghai.android.files.compat.reversedCompat
 import me.zhanghai.android.files.file.FileItem
+import java.util.Date
 
 @Parcelize
 data class FileSortOptions(
@@ -33,7 +34,7 @@ data class FileSortOptions(
                     .then(comparator)
         }
         if (by == By.LAST_MODIFIED && order == Order.ASCENDING) {
-            comparator = compareBy<FileItem> { it.lastOpenedDate }.reversedCompat().then(comparator.reversedCompat())
+            comparator = compareBy<FileItem> { it.lastOpenedTime ?: LAST_OPENED_DATE_NULL_BASE }.reversedCompat().then(comparator.reversedCompat())
         }
         when (order) {
             Order.ASCENDING -> {}
@@ -50,6 +51,8 @@ data class FileSortOptions(
     companion object {
         // Same behavior as Nautilus.
         private val NAME_UNIMPORTANT_PREFIXES = listOf(".", "#")
+
+        private val LAST_OPENED_DATE_NULL_BASE = Date(2000-1900, 1, 1, 0, 0, 0)
     }
 
     enum class By {
