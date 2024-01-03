@@ -1123,7 +1123,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private fun openFileWithIntent(file: FileItem, withChooser: Boolean) {
         val path = file.path
-        viewModel.updateLastOpenedTimeMapIfExist(path, Date())
+        if (!withChooser) {
+            viewModel.updateLastOpenedTimeMapIfExist(path, Date())
+        }
         val mimeType = file.mimeType
         if (path.isArchivePath) {
             FileJobService.open(path, mimeType, withChooser, requireContext())
