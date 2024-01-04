@@ -5,6 +5,7 @@
 
 package me.zhanghai.android.files.filelist
 
+import android.os.AsyncTask
 import android.os.Parcelable
 import android.util.Log
 import androidx.lifecycle.LiveData
@@ -16,6 +17,12 @@ import java8.nio.charset.StandardCharsets
 import java8.nio.file.Path
 import java8.nio.file.Paths
 import java8.nio.file.StandardCopyOption
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filelist.FileSortOptions.By
 import me.zhanghai.android.files.filelist.FileSortOptions.Order
@@ -27,11 +34,14 @@ import me.zhanghai.android.files.provider.common.readAllBytes
 import me.zhanghai.android.files.provider.common.size
 import me.zhanghai.android.files.util.CloseableLiveData
 import me.zhanghai.android.files.util.Stateful
+import me.zhanghai.android.files.util.fadeIn
 import me.zhanghai.android.files.util.valueCompat
 import okio.Path.Companion.toPath
 import java.io.Closeable
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 // TODO: Use SavedStateHandle to save state.
 class FileListViewModel : ViewModel() {
@@ -92,8 +102,10 @@ class FileListViewModel : ViewModel() {
         if (path.isArchivePath) {
             path.archiveRefresh()
         }
-        loadLastOpenedTimeMap(path)
-        _fileListLiveData.reload()
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            loadLastOpenedTimeMap(path)
+            _fileListLiveData.reload()
+        }
     }
 
     val searchViewExpandedLiveData = MutableLiveData(false)
@@ -235,87 +247,105 @@ class FileListViewModel : ViewModel() {
         _pasteStateLiveData.value = pasteState
     }
 
-    fun loadLastOpenedTimeMap(path: Path) {
-        lastOpenedTimeMapPath =
-            (path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
-                if (!mp.exists()) {
-                    return@let null
-                } else {
-                    mp.normalize()
-                }
-            } ?: run {
-                path.resolve("../" + "RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+    suspend fun loadLastOpenedTimeMap(path: Path) = suspendCoroutine { continuation ->
+        AsyncTask.THREAD_POOL_EXECUTOR.execute {
+            lastOpenedTimeMapPath =
+                (path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
                     if (!mp.exists()) {
                         return@let null
                     } else {
                         mp.normalize()
                     }
-                }
-            } ?: run {
-                path.resolve("../../RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
-                    if (!mp.exists()) {
-                        return@let null
-                    } else {
-                        mp.normalize()
-                    }
-                }
-            })
-
-        lastOpenedTimeMap = try { lastOpenedTimeMapPath?.let { mp ->
-            val zeroDate = Date(0)
-            Log.i(javaClass.simpleName, "reading lastOpenedTimeMap " + mp.toString())
-            val result = mp.readAllBytes()
-                .toString(StandardCharsets.UTF_8)
-                .split("\n")
-                .map {
-                    val splitted = it.trim().split("     ")
-                    splitted.getOrElse(1, { _ -> null}) to try {
-                        splitted.getOrNull(0)?.let {
-                            lastOpenedTimeMapDf.parse(it)
+                } ?: run {
+                    path.resolve("../" + "RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+                        if (!mp.exists()) {
+                            return@let null
+                        } else {
+                            mp.normalize()
                         }
-                    } catch (e: Exception) {
-                        null
                     }
-                }
-                .mapNotNull {
-                    if (it.first != null && it.second != null) {
-                        (it.first to it.second) as Pair<String, Date>
-                    } else {
-                        null
+                } ?: run {
+                    path.resolve("../../RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
+                        if (!mp.exists()) {
+                            return@let null
+                        } else {
+                            mp.normalize()
+                        }
                     }
-                }
-                .toMap(LinkedHashMap())
-            Log.i(javaClass.simpleName, "done reading lastOpenedTimeMap")
-            result
-        } } catch (e: Exception) {
-            Log.w(javaClass.simpleName, "reading lastOpenedTimeMap fail " + Log.getStackTraceString(e))
-            null
+                })
+
+            lastOpenedTimeMap = try { lastOpenedTimeMapPath?.let { mp ->
+                val zeroDate = Date(0)
+                Log.i(javaClass.simpleName, "reading lastOpenedTimeMap " + mp.toString())
+                val result = mp.readAllBytes()
+                    .toString(StandardCharsets.UTF_8)
+                    .split("\n")
+                    .map {
+                        val splitted = it.trim().split("     ")
+                        splitted.getOrElse(1, { _ -> null}) to try {
+                            splitted.getOrNull(0)?.let {
+                                lastOpenedTimeMapDf.parse(it)
+                            }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    .mapNotNull {
+                        if (it.first != null && it.second != null) {
+                            (it.first to it.second) as Pair<String, Date>
+                        } else {
+                            null
+                        }
+                    }
+                    .toMap(LinkedHashMap())
+                Log.i(javaClass.simpleName, "done reading lastOpenedTimeMap")
+                result
+            } } catch (e: Exception) {
+                Log.w(javaClass.simpleName, "reading lastOpenedTimeMap fail " + Log.getStackTraceString(e))
+                null
+            }
+            continuation.resume(Unit)
         }
     }
 
     fun updateLastOpenedTimeMapIfExist(filePath: Path, newOpenedDate: Date) {
-        try {
-            lastOpenedTimeMap?.let { lastOpenedTimeMap ->
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            try {
                 loadLastOpenedTimeMap(currentPath)
-                Log.i(javaClass.simpleName, "writing lastOpenedTimeMap " + lastOpenedTimeMapPath!!.name)
-                lastOpenedTimeMap[if (lastOpenedTimeMapPath?.parent?.equals(currentPath) == true) {
-                    filePath.name
-                } else {
-                    lastOpenedTimeMapPath!!.parent.relativize(filePath).toString()
-                }] = newOpenedDate
-                val tempFilePath = lastOpenedTimeMapPath!!.resolveSibling(lastOpenedTimeMapPath!!.name.removeSuffix(".txt") + ("." + lastOpenedTimeMapDf.format(Date()).replace("-", "").replace(" ", "").replace(":", "") + ".txt"))
-                tempFilePath
-                    .toFile().writeBytes(
-                        lastOpenedTimeMap.map {
-                            lastOpenedTimeMapDf.format(it.value) + "     " + it.key
-                        }.joinToString("\n").toByteArray(StandardCharsets.UTF_8)
+                lastOpenedTimeMap?.let { lastOpenedTimeMap ->
+                    Log.i(
+                        javaClass.simpleName,
+                        "writing lastOpenedTimeMap " + lastOpenedTimeMapPath!!.name
                     )
+                    lastOpenedTimeMap[if (lastOpenedTimeMapPath?.parent?.equals(currentPath) == true) {
+                        filePath.name
+                    } else {
+                        lastOpenedTimeMapPath!!.parent.relativize(filePath).toString()
+                    }] = newOpenedDate
+                    val tempFilePath = lastOpenedTimeMapPath!!.resolveSibling(
+                        lastOpenedTimeMapPath!!.name.removeSuffix(".txt") + ("." + lastOpenedTimeMapDf.format(
+                            Date()
+                        ).replace("-", "").replace(" ", "").replace(":", "") + ".txt")
+                    )
+                    tempFilePath
+                        .toFile().writeBytes(
+                            lastOpenedTimeMap.map {
+                                lastOpenedTimeMapDf.format(it.value) + "     " + it.key
+                            }.joinToString("\n").toByteArray(StandardCharsets.UTF_8)
+                        )
 
-                tempFilePath.moveTo(lastOpenedTimeMapPath!!, StandardCopyOption.REPLACE_EXISTING)
-                Log.i(javaClass.simpleName, "done writing lastOpenedTimeMap")
+                    tempFilePath.moveTo(
+                        lastOpenedTimeMapPath!!,
+                        StandardCopyOption.REPLACE_EXISTING
+                    )
+                    Log.i(javaClass.simpleName, "done writing lastOpenedTimeMap")
+                }
+            } catch (e: Exception) {
+                Log.w(
+                    javaClass.simpleName,
+                    "writing lastOpenedTimeMap fail " + Log.getStackTraceString(e)
+                )
             }
-        } catch (e: Exception) {
-            Log.w(javaClass.simpleName, "writing lastOpenedTimeMap fail " + Log.getStackTraceString(e))
         }
     }
 
@@ -362,14 +392,29 @@ class FileListViewModel : ViewModel() {
             }
             val path = pathLiveData.valueCompat
             val searchState = searchStateLiveData.valueCompat
-            loadLastOpenedTimeMap(path)
+
             val liveData = if (searchState.isSearching) {
                 SearchFileListLiveData(path, searchState.query)
             } else {
-                FileListLiveData(path, { lastOpenedTimeMap }, { lastOpenedTimeMapPath })
+                FileListLiveData(path, {
+                    if (lastOpenedTimeMap == null) {
+                        runBlocking {
+                            loadLastOpenedTimeMap(path)
+                        }
+                    }
+                    lastOpenedTimeMap
+                }, {
+                    if (lastOpenedTimeMapPath == null) {
+                        runBlocking {
+                            loadLastOpenedTimeMap(path)
+                        }
+                    }
+                    lastOpenedTimeMapPath
+                })
             }
-            this.liveData = liveData
+            this@FileListSwitchMapLiveData.liveData = liveData
             addSource(liveData) { value = it }
+
         }
 
         fun reload() {
