@@ -43,6 +43,8 @@ import java.util.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.concurrent.thread
+import java8.nio.file.Files
+import java8.nio.file.StandardOpenOption
 
 // TODO: Use SavedStateHandle to save state.
 class FileListViewModel : ViewModel() {
@@ -331,12 +333,14 @@ class FileListViewModel : ViewModel() {
                             Date()
                         ).replace("-", "").replace(" ", "").replace(":", "") + ".txt")
                     )
-                    tempFilePath
-                        .toFile().writeBytes(
+                    Files.newOutputStream(tempFilePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).apply {
+                        write(
                             lastOpenedTimeMap.map {
                                 lastOpenedTimeMapDf.format(it.value) + "     " + it.key
                             }.joinToString("\n").toByteArray(StandardCharsets.UTF_8)
                         )
+                        close()
+                    }
 
                     tempFilePath.moveTo(
                         lastOpenedTimeMapPath!!,
