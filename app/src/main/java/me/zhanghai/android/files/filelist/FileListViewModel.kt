@@ -42,6 +42,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.concurrent.thread
 
 // TODO: Use SavedStateHandle to save state.
 class FileListViewModel : ViewModel() {
@@ -248,7 +249,7 @@ class FileListViewModel : ViewModel() {
     }
 
     suspend fun loadLastOpenedTimeMap(path: Path) = suspendCoroutine { continuation ->
-        AsyncTask.THREAD_POOL_EXECUTOR.execute {
+        thread(start = true, isDaemon = false) {
             lastOpenedTimeMapPath =
                 (path.resolve("RIV_FILE_LAST_OPENED_TIME_MAP.txt").let { mp ->
                     if (!mp.exists()) {
@@ -309,7 +310,7 @@ class FileListViewModel : ViewModel() {
     }
 
     fun updateLastOpenedTimeMapIfExist(filePath: Path, newOpenedDate: Date) {
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        GlobalScope.launch(Dispatchers.IO) {
             try {
                 loadLastOpenedTimeMap(currentPath)
                 lastOpenedTimeMap?.let { lastOpenedTimeMap ->
