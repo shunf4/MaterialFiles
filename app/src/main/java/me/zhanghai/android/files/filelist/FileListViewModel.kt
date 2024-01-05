@@ -323,7 +323,7 @@ class FileListViewModel : ViewModel() {
                     } else { */
                         lastOpenedTimeMapPath!!.parent.relativize(filePath).toString()
                     /* } */
-                    if ((lastOpenedTimeMap[key] ?? FileSortOptions.LAST_OPENED_DATE_NULL_BASE).after(FileSortOptions.LAST_OPENED_DATE_NULL_BASE)) {
+                    if ((lastOpenedTimeMap[key] ?: FileSortOptions.LAST_OPENED_DATE_NULL_BASE).after(FileSortOptions.LAST_OPENED_DATE_NULL_BASE)) {
                         lastOpenedTimeMap[key] = newOpenedDate
                     }
                     val tempFilePath = lastOpenedTimeMapPath!!.resolveSibling(
