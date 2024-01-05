@@ -318,11 +318,14 @@ class FileListViewModel : ViewModel() {
                         javaClass.simpleName,
                         "writing lastOpenedTimeMap " + lastOpenedTimeMapPath!!.name
                     )
-                    lastOpenedTimeMap[if (lastOpenedTimeMapPath?.parent?.equals(currentPath) == true) {
+                    val key = /* if (lastOpenedTimeMapPath?.parent?.equals(currentPath) == true) {
                         filePath.name
-                    } else {
+                    } else { */
                         lastOpenedTimeMapPath!!.parent.relativize(filePath).toString()
-                    }] = newOpenedDate
+                    /* } */
+                    if ((lastOpenedTimeMap[key] ?? FileSortOptions.LAST_OPENED_DATE_NULL_BASE).after(FileSortOptions.LAST_OPENED_DATE_NULL_BASE)) {
+                        lastOpenedTimeMap[key] = newOpenedDate
+                    }
                     val tempFilePath = lastOpenedTimeMapPath!!.resolveSibling(
                         lastOpenedTimeMapPath!!.name.removeSuffix(".txt") + ("." + lastOpenedTimeMapDf.format(
                             Date()

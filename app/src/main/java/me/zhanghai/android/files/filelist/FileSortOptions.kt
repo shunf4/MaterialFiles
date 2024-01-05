@@ -52,7 +52,7 @@ data class FileSortOptions(
         // Same behavior as Nautilus.
         private val NAME_UNIMPORTANT_PREFIXES = listOf(".", "#")
 
-        private val LAST_OPENED_DATE_NULL_BASE = Date(2000-1900, 1, 1, 0, 0, 0)
+        val LAST_OPENED_DATE_NULL_BASE = Date(2000-1900, 1, 1, 0, 0, 0)
     }
 
     enum class By {
